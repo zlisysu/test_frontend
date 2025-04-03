@@ -3,14 +3,10 @@ import { computed, watch, watchEffect } from 'vue'
 import { api } from '@/scripts/api'
 import { app as comfyApp } from '@/scripts/app'
 import { getStorageValue, setStorageValue } from '@/scripts/utils'
-import { useWorkflowService } from '@/services/workflowService'
-import { useCommandStore } from '@/stores/commandStore'
-import { useSettingStore } from '@/stores/settingStore'
 import { useWorkflowStore } from '@/stores/workflowStore'
 
 export function useWorkflowPersistence() {
   const workflowStore = useWorkflowStore()
-  const settingStore = useSettingStore()
 
   const persistCurrentWorkflow = () => {
     const workflow = JSON.stringify(comfyApp.serializeGraph())
@@ -47,25 +43,11 @@ export function useWorkflowPersistence() {
     return await loadWorkflowFromStorage(localWorkflow, workflowName)
   }
 
-  const loadDefaultWorkflow = async () => {
-    if (!settingStore.get('Comfy.TutorialCompleted')) {
-      await settingStore.set('Comfy.TutorialCompleted', true)
-      await useWorkflowService().loadBlankWorkflow()
-      await useCommandStore().execute('Comfy.BrowseTemplates')
-    } else {
-      await comfyApp.loadGraphData()
-    }
-  }
-
   const restorePreviousWorkflow = async () => {
     try {
-      const restored = await loadPreviousWorkflowFromStorage()
-      if (!restored) {
-        await loadDefaultWorkflow()
-      }
+      await loadPreviousWorkflowFromStorage()
     } catch (err) {
       console.error('Error loading previous workflow', err)
-      await loadDefaultWorkflow()
     }
   }
 

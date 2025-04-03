@@ -196,13 +196,16 @@ export const useWorkflowService = () => {
       }
     }
 
-    // If this is the last workflow, create a new default temporary workflow
-    if (workflowStore.openWorkflows.length === 1) {
-      await loadDefaultWorkflow()
-    }
     // If this is the active workflow, load the next workflow
     if (workflowStore.isActive(workflow)) {
       await loadNextOpenedWorkflow()
+
+      // 如果没有下一个工作流（这是最后一个工作流），清空画布
+      if (workflowStore.openWorkflows.length <= 1) {
+        app.clean()
+        app.graph.clear()
+        // api.dispatchCustomEvent('graphCleared')
+      }
     }
 
     await workflowStore.closeWorkflow(workflow)

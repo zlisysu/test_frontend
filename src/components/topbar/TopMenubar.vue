@@ -5,7 +5,7 @@
     v-show="showTopMenu"
     :class="{ dropzone: isDropZone, 'dropzone-active': isDroppable }"
   >
-    <h1 class="comfyui-logo mx-2 app-drag">ComfyUI</h1>
+    <h1 class="comfyui-logo mx-2 app-drag">ALCHEMIST</h1>
     <CommandMenubar />
     <div class="flex-grow min-w-0 app-drag h-full">
       <WorkflowTabs v-if="workflowTabsPosition === 'Topbar'" />
