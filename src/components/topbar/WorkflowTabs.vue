@@ -33,7 +33,7 @@
       text
       severity="secondary"
       :aria-label="$t('sideToolbar.newBlankWorkflow')"
-      @click="() => commandStore.execute('Comfy.NewBlankWorkflow')"
+      @click="onNewWorkflowClick"
     />
     <ContextMenu ref="menu" :model="contextMenuItems" />
   </div>
@@ -53,6 +53,7 @@ import { useCommandStore } from '@/stores/commandStore'
 import { ComfyWorkflow, useWorkflowBookmarkStore } from '@/stores/workflowStore'
 import { useWorkflowStore } from '@/stores/workflowStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { TabEventType, dispatchTabEvent } from '@/utils/tabEvents'
 
 interface WorkflowOption {
   value: string
@@ -94,7 +95,26 @@ const onWorkflowChange = (option: WorkflowOption) => {
     return
   }
 
+  // 分发标签选择事件
+  dispatchTabEvent(TabEventType.Select, {
+    id: option.workflow.key,
+    path: option.workflow.path,
+    filename: option.workflow.filename
+  })
+
   workflowService.openWorkflow(option.workflow)
+}
+
+// 新建工作流按钮点击事件
+const onNewWorkflowClick = () => {
+  // 分发新建标签事件
+  dispatchTabEvent(TabEventType.Add, {
+    id: `new_${Date.now()}`,
+    isTemporary: true
+  })
+
+  // 执行原有命令
+  commandStore.execute('Comfy.NewBlankWorkflow')
 }
 
 const closeWorkflows = async (options: WorkflowOption[]) => {

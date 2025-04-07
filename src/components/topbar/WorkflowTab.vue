@@ -41,6 +41,7 @@ import { useWorkflowService } from '@/services/workflowService'
 import { ComfyWorkflow } from '@/stores/workflowStore'
 import { useWorkflowStore } from '@/stores/workflowStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { TabEventType, dispatchTabEvent } from '@/utils/tabEvents'
 
 interface WorkflowOption {
   value: string
@@ -60,6 +61,12 @@ const workflowTabRef = ref<HTMLElement | null>(null)
 
 const closeWorkflows = async (options: WorkflowOption[]) => {
   for (const opt of options) {
+    dispatchTabEvent(TabEventType.Remove, {
+      id: opt.workflow.key,
+      path: opt.workflow.path,
+      filename: opt.workflow.filename
+    })
+
     if (
       !(await useWorkflowService().closeWorkflow(opt.workflow, {
         warnIfUnsaved: !workspaceStore.shiftDown,
@@ -99,6 +106,16 @@ usePragmaticDroppable(tabGetter, {
       (wf) => wf.key === e.location.current.dropTargets[0]?.data.workflowKey
     )
     if (fromIndex !== toIndex) {
+      dispatchTabEvent(TabEventType.Reorder, {
+        fromIndex,
+        toIndex,
+        tabs: workflowStore.openWorkflows.map((wf) => ({
+          id: wf.key,
+          path: wf.path,
+          filename: wf.filename
+        }))
+      })
+
       workflowStore.reorderWorkflows(fromIndex, toIndex)
     }
   }

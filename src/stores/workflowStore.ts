@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import { defineStore } from 'pinia'
-import { computed, markRaw, ref } from 'vue'
+import { computed, markRaw, ref, watch } from 'vue'
 
 import { ComfyWorkflowJSON } from '@/schemas/comfyWorkflowSchema'
 import { api } from '@/scripts/api'
@@ -8,6 +8,7 @@ import { ChangeTracker } from '@/scripts/changeTracker'
 import { defaultGraphJSON } from '@/scripts/defaultGraph'
 import { getPathDetails } from '@/utils/formatUtil'
 import { syncEntities } from '@/utils/syncUtil'
+import { TabEventType, dispatchTabEvent } from '@/utils/tabEvents'
 
 import { UserFile } from './userFileStore'
 
@@ -214,6 +215,23 @@ export const useWorkflowStore = defineStore('workflow', () => {
     const movedTab = openWorkflowPaths.value[from]
     openWorkflowPaths.value.splice(from, 1)
     openWorkflowPaths.value.splice(to, 0, movedTab)
+
+    // 分发标签重排事件
+    const workflow = workflowLookup.value[movedTab]
+    if (workflow) {
+      dispatchTabEvent(TabEventType.Reorder, {
+        fromIndex: from,
+        toIndex: to,
+        id: workflow.key,
+        path: workflow.path,
+        filename: workflow.filename,
+        tabs: openWorkflows.value.map((wf) => ({
+          id: wf.key,
+          path: wf.path,
+          filename: wf.filename
+        }))
+      })
+    }
   }
   const isOpen = (workflow: ComfyWorkflow) =>
     openWorkflowPathSet.value.has(workflow.path)
@@ -257,11 +275,36 @@ export const useWorkflowStore = defineStore('workflow', () => {
   ): Promise<LoadedComfyWorkflow> => {
     if (isActive(workflow)) return workflow as LoadedComfyWorkflow
 
-    if (!openWorkflowPaths.value.includes(workflow.path)) {
+    const isNewTab = !openWorkflowPaths.value.includes(workflow.path)
+
+    if (isNewTab) {
       openWorkflowPaths.value.push(workflow.path)
+
+      // 分发标签添加事件
+      dispatchTabEvent(TabEventType.Add, {
+        id: workflow.key,
+        path: workflow.path,
+        filename: workflow.filename,
+        isTemporary: workflow.isTemporary
+      })
     }
+
     const loadedWorkflow = await workflow.load()
-    activeWorkflow.value = loadedWorkflow
+
+    // 如果活动标签改变，分发标签选择事件
+    if (activeWorkflow.value?.path !== workflow.path) {
+      activeWorkflow.value = loadedWorkflow
+
+      // 分发标签选择事件
+      dispatchTabEvent(TabEventType.Select, {
+        id: workflow.key,
+        path: workflow.path,
+        filename: workflow.filename
+      })
+    } else {
+      activeWorkflow.value = loadedWorkflow
+    }
+
     console.debug('[workflowStore] open workflow', workflow.path)
     return loadedWorkflow
   }
@@ -296,6 +339,13 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   const closeWorkflow = async (workflow: ComfyWorkflow) => {
+    // 分发标签关闭事件
+    dispatchTabEvent(TabEventType.Remove, {
+      id: workflow.key,
+      path: workflow.path,
+      filename: workflow.filename
+    })
+
     openWorkflowPaths.value = openWorkflowPaths.value.filter(
       (path) => path !== workflow.path
     )
@@ -417,6 +467,20 @@ export const useWorkflowStore = defineStore('workflow', () => {
       isBusy.value = false
     }
   }
+
+  // 监听activeWorkflow变化，触发标签选择事件
+  watch(
+    () => activeWorkflow.value,
+    (newWorkflow, oldWorkflow) => {
+      if (newWorkflow && newWorkflow !== oldWorkflow) {
+        dispatchTabEvent(TabEventType.Select, {
+          id: newWorkflow.key,
+          path: newWorkflow.path,
+          filename: newWorkflow.filename
+        })
+      }
+    }
+  )
 
   return {
     activeWorkflow,
